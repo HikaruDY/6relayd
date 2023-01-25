@@ -1,0 +1,134 @@
+#////////////////////////////////////////////////////////////////////////////////
+#// Generic Makefile for DESLinux apps
+#//	(C)2023 Dark Embedded Systems
+#//	http://oss.xprj.org/
+#////////////////////////////////////////////////////////////////////////////////
+.PHONY: all install clean static shared
+.SUFFIXES:
+.SUFFIXES: .o .c
+
+# File: exts
+EXT_APP_SHARED	:=
+EXT_APP_STATIC	:= _static
+EXT_OBJ		:= .o
+EXT_LIB_SHARED	:= .so
+EXT_LIB_STATIC	:= .a
+
+# Core
+SELF	:= $(abspath $(lastword $(MAKEFILE_LIST)))
+CROOT	:= $(CURDIR)
+$(if $(MROOT),,$(eval MROOT := $(dir SELF)))
+
+# Override by ./configure script (Others can overrided by 'make' args)
+include $(MROOT)/Project.settings
+$(if $(prefix),,$(eval prefix := /usr))
+$(if $(XBIN_DIR),,$(eval XBIN_DIR := $(BIN_DIR)))
+
+# Build tools: options
+INCLUDE_MERGED		:= $(addprefix $(MROOT),$(INCLUDE_MROOT)) $(addprefix $(CROOT),$(INCLUDE_COOT)) $(INCLUDE)
+CFLAGS_INTERNAL		:= -fPIC
+CFLAGS_MERGED		:= $(CFLAGS_INTERNAL) $(CFLAGS) $(INCLUDE_CC)
+CXXFLAGS_INTERNAL	:=
+CXXFLAGS_MERGED		:= $(CFLAGS_MERGED) $(CXXFLAGS_INTERNAL) $(CXXFLAGS)
+LDFLAGS_SHARED		:= -shared
+LDFLAGS_STATIC		:= -static
+LDFLAGS_INTERNAL	:=
+LDFLAGS_MERGED		:= $(LDFLAGS_INTERNAL) $(LDFLAGS)
+
+# Dir: Install
+INSTALL_DIR	:= $(DESTDIR)/$(prefix)/
+BIN_DIR		:= bin
+ETC_DIR		:= etc
+INCLUDE_DIR	:= include
+LIBEXEC_DIR	:= libexec
+LIB_DIR		:= lib
+SBIN_DIR	:= sbin
+SHARE_DIR	:= share
+
+# Dir: Build
+BUILD_DIR	:= build
+BUILD_DIR_EX	:= $(if $(BUILD_DIR),$(BUILD_DIR)/)
+SRC_DIR		:= src
+SRC_DIR_EX	:= $(if $(SRC_DIR),$(SRC_DIR)/)
+OUT_DIR		:= bin
+OUT_DIR_EX	:= $(if $(OUT_DIR),$(OUT_DIR)/)
+INCLUDE_CC	:= $(addprefix '-I',$(INCLUDE_MERGED))
+LIB		:=
+LIB_CC		:= $(addprefix '-L',$(LIB))
+
+# Files: auto collection
+DETECTED_C_FILES	:= $(wildcard $(MROOT)$(SRC_DIR_EX)*.c)
+ALL_C_FILES			:= $(DETECTED_C_FILES)
+ALL_SRC_NAMES		:= $(basename $(notdir $(ALL_C_FILES)))
+ALL_OBJ_FILES		:= $(addprefix $(BUILD_DIR_EX),$(addsuffix $(EXT_OBJ), $(ALL_SRC_NAMES)))
+
+# Recipe
+not-configurated:
+	@echo Please './confugure' first.
+
+completely-all: app lib
+
+completely-install: install-app install-lib install-header
+
+clean:
+	@rm -rf "$(OUT_DIR_EX)" "$(BUILD_DIR_EX)"
+
+app: static-app shared-app
+
+lib: static-lib shared-lib
+
+install-app: install-static-app install-shared-app
+
+install-lib: install-static-lib install-shared-lib
+
+static-app: $(OUT_DIR_EX)$(NAME)$(EXT_APP_STATIC)
+
+shared-app: $(OUT_DIR_EX)$(NAME)$(EXT_APP_SHARED)
+
+static-lib: $(OUT_DIR_EX)$(NAME)$(EXT_LIB_STATIC)
+
+shared-lib: $(OUT_DIR_EX)$(NAME)$(EXT_LIB_SHARED)
+
+install-static-app: static-app
+	@mkdir -p "$(INSTALL_DIR)/$(XBIN_DIR)"
+	@cp "$(OUT_DIR_EX)$(NAME)$(EXT_APP_STATIC)" "$(INSTALL_DIR)/$(XBIN_DIR)"
+
+install-shared-app: shared-app
+	@mkdir -p "$(INSTALL_DIR)/$(XBIN_DIR)"
+	@cp "$(OUT_DIR_EX)$(NAME)$(EXT_APP_SHARED)" "$(INSTALL_DIR)/$(XBIN_DIR)"
+
+install-static-lib: static-lib
+	@mkdir -p "$(INSTALL_DIR)/$(LIB_DIR)"
+	@cp "$(OUT_DIR_EX)$(NAME)$(EXT_LIB_STATIC)" "$(INSTALL_DIR)/$(LIB_DIR)"
+
+install-shared-lib: shared-lib
+	@mkdir -p "$(INSTALL_DIR)/$(LIB_DIR)"
+	@cp "$(OUT_DIR_EX)$(NAME)$(EXT_LIB_SHARED)" "$(INSTALL_DIR)/$(LIB_DIR)"
+
+install-header:
+	@mkdir -p "$(INSTALL_DIR)/$(INCLUDE_DIR)"
+	@cp $(addprefix $(MROOT)$(SRC_DIR_EX),$(INSTALL_HEADER_FILES)) "$(INSTALL_DIR)/$(INCLUDE_DIR)"
+
+$(OUT_DIR_EX)$(NAME)$(EXT_APP_STATIC): $(ALL_OBJ_FILES)
+	@mkdir -p "$(OUT_DIR_EX)"
+	@$(CC) $(LDFLAGS_STATIC) $(LDFLAGS_MERGED) -o "$@" $(ALL_OBJ_FILES)
+
+$(OUT_DIR_EX)$(NAME)$(EXT_APP_SHARED): $(ALL_OBJ_FILES)
+	@mkdir -p "$(OUT_DIR_EX)"
+	@$(CC) $(LDFLAGS_MERGED) -o "$@" $(ALL_OBJ_FILES)
+
+$(OUT_DIR_EX)$(NAME)$(EXT_LIB_STATIC): $(ALL_OBJ_FILES)
+	@mkdir -p "$(OUT_DIR_EX)"
+	@$(AR) rcs "$@" $(ALL_OBJ_FILES)
+
+$(OUT_DIR_EX)$(NAME)$(EXT_LIB_SHARED): $(ALL_OBJ_FILES)
+	@mkdir -p "$(OUT_DIR_EX)"
+	@$(CC) $(LDFLAGS_SHARED) $(LDFLAGS_MERGED) -o "$@" $(ALL_OBJ_FILES)
+
+# Auto recipe
+define CompileCSource
+$(BUILD_DIR_EX)$(1)$(EXT_OBJ): $(MROOT)$(SRC_DIR_EX)$(1).c $(CONFIG)
+	@mkdir -p "$(BUILD_DIR_EX)"
+	@$(CC) $(CFLAGS_MERGED) $(INCLUDE_CC) -c "$(MROOT)$(SRC_DIR_EX)$(1).c" -o "$(BUILD_DIR_EX)$(1)$(EXT_OBJ)"
+endef
+$(foreach P, $(ALL_SRC_NAMES), $(eval $(call CompileCSource,$(P))) )

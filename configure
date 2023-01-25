@@ -1,0 +1,145 @@
+#!/bin/sh
+#////////////////////////////////////////////////////////////////////////////////
+#// Generic configure script for DESLinux apps
+#//	(C)2023 Dark Embedded Systems
+#//	http://oss.xprj.org/
+#////////////////////////////////////////////////////////////////////////////////
+
+main(){
+	local a;
+	local err=0;
+
+	local SELF="${BASH_SOURCE:-${0}}";
+	local SELF=`readlink -f "${SELF}" || echo "${SELF}"`;
+	local sRoot=${SELF%/*};
+
+	. "${sRoot}/Project.settings"
+
+	local cc;
+
+	local ssmode;
+	local ssmode_install;
+
+	local prefix;
+
+	local host;
+	local build; # This minimum Makefile / configure do not support internal build tools
+	local target; # This minimum Makefile / configure do not support arch dependent files.
+
+	for a in "$@"; do
+		case ${a} in
+			-h | --help) usage; return 0;;
+			--shared)	ssmode="${ssmode} shared-${TYPE}";
+						ssmode_install="${ssmode_install} install-shared-${TYPE}";;
+			--static)	ssmode="${ssmode} static-${TYPE}";
+						ssmode_install="${ssmode_install} install-static-${TYPE}";;
+			--prefix=*)	prefix="${a#*=}";;
+			--build=*)	build="${a#*=}";;
+			--host=*)	host="${a#*=}";;
+			--target=*)	target="${a#*=}";;
+			--*)
+				echo "Unknown option: ${a}"
+				usage;
+				err=1;
+			;;
+			*=*)		eval ${a%%=*}='${a#*=}';;
+			*)
+				echo "Unknown args: ${a}"
+				usage;
+				err=1;
+			;;
+		esac
+	done
+
+	[ "${ssmode}" = '' ] && {
+		case ${TYPE} in
+			app)	ssmode="shared-${TYPE}";
+					ssmode_install="install-shared-${TYPE}";;
+			lib)	ssmode="static-${TYPE} shared-${TYPE}";
+					ssmode_install="install-static-${TYPE} install-shared-${TYPE}";;
+			*) echo "Unknown TYPE mode.";;
+		esac
+	}
+
+	case ${TYPE} in
+		lib) ssmode_install="${ssmode_install} install-header";;
+	esac
+
+	# Stop when error
+	[ "${err:-0}" = '1' ] && return 1;
+
+	# Test build tools
+	R='';
+	test_cc ${host:+${host}-}cc -v
+	test_cc ${host:+${host}-}gcc -v
+	test_cc ${CC} -v
+	[ "${R}" = '' ] && {
+		echo "Not found: '${host:+${host}-}cc'"
+		return 1;
+	}
+	local host_cc="${R}";
+
+	# Config
+	write_makefile > Makefile
+
+	echo "Configurated. Now you can run 'make'"
+}
+
+write_makefile(){
+cat << EOF
+all: libubox ${ssmode}
+install: libubox ${ssmode_install}
+
+MROOT		= ${sRoot:-.}/
+prefix		= ${prefix:-/usr}
+
+CROSS_TARGET	= ${host:+${host}-}
+CC		= ${CC:-${host_cc}}
+CXX		= ${CXX:-\$(CROSS_TARGET)g++}
+LD		= \$(CROSS_TARGET)ld
+AR		= \$(CROSS_TARGET)ar
+AS		= \$(CROSS_TARGET)as
+NM		= \$(CROSS_TARGET)nm
+OBJCOPY		= \$(CROSS_TARGET)objcopy
+OBJDUMP		= \$(CROSS_TARGET)objdump
+RANLIB		= \$(CROSS_TARGET)ranlib
+READELF		= \$(CROSS_TARGET)readelf
+STRIP		= \$(CROSS_TARGET)strip
+
+CFLAGS		= ${CFLAGS}
+CXXFLAGS	= ${CXXFLAGS}
+LDFLAGS		= ${LDFLAGS} "\$(BUILD_DIR_EX)/libubox.o"
+
+INCLUDE		= ${INCLUDE}
+
+include ${sRoot}/Project.mk
+include ${sRoot}/Makefile.in
+
+EOF
+}
+
+test_cc(){
+	APP="${1}";
+	shift 1
+	"${APP}" "${@}" >/dev/null 2>&1 && R="${APP}"
+}
+
+usage(){
+cat << EOF
+Generic configure script for DESLinux apps
+	(C)2023 Dark Embedded Systems
+	http://oss.xprj.org/
+
+Usage:
+	${SELF} [OPTION]... [VAR=VALUE]...
+
+Configuration:
+	-h, --help	Display this help and exit.
+	-prefix=<PATH>	Install files to PATH. [/usr]
+	-shared		Build dynamic linked version.
+	-static		Build static version.
+	--host=<HOST>	Target name for cross-compile.
+
+EOF
+}
+main "${@}"
