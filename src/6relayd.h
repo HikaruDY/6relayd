@@ -107,6 +107,8 @@ struct relayd_config {
 
 	char** static_ndp;
 	size_t static_ndp_len;
+
+	char route_proto[4];
 };
 
 
