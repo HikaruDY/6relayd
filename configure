@@ -136,8 +136,8 @@ Usage:
 Configuration:
 	-h, --help	Display this help and exit.
 	-prefix=<PATH>	Install files to PATH. [/usr]
-	-shared		Build dynamic linked version.
-	-static		Build static version.
+	--shared	Build dynamic linked version.
+	--static	Build static version.
 	--host=<HOST>	Target name for cross-compile.
 
 EOF
