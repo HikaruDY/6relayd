@@ -98,8 +98,6 @@ cat << EOF
 all: ${CUSTOM_CMD} ${ssmode}
 install: ${CUSTOM_CMD} ${ssmode_install}
 
-include ${sRoot}/Project.mk
-
 MROOT		= ${sRoot:-.}/
 prefix		= ${prefix:-/usr}
 
@@ -123,6 +121,7 @@ LDFLAGS		= ${LDFLAGS}
 INCLUDE		= ${INCLUDE}
 
 include ${sRoot}/Makefile.in
+include ${sRoot}/Project.mk
 
 EOF
 }
