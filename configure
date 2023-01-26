@@ -13,12 +13,14 @@ main(){
 	local SELF=`readlink -f "${SELF}" || echo "${SELF}"`;
 	local sRoot=${SELF%/*};
 
-	. "${sRoot}/Project.settings"
+	. "${sRoot}/Project.settings" 2>/dev/null
 
 	local cc;
 
 	local ssmode;
 	local ssmode_install;
+	local shared=0;
+	local static=0;
 
 	local prefix;
 
@@ -29,10 +31,8 @@ main(){
 	for a in "$@"; do
 		case ${a} in
 			-h | --help) usage; return 0;;
-			--shared)	ssmode="${ssmode} shared-${TYPE}";
-						ssmode_install="${ssmode_install} install-shared-${TYPE}";;
-			--static)	ssmode="${ssmode} static-${TYPE}";
-						ssmode_install="${ssmode_install} install-static-${TYPE}";;
+			--shared)	shared=1;;
+			--static)	static=1;;
 			--prefix=*)	prefix="${a#*=}";;
 			--build=*)	build="${a#*=}";;
 			--host=*)	host="${a#*=}";;
@@ -51,15 +51,23 @@ main(){
 		esac
 	done
 
-	[ "${ssmode}" = '' ] && {
-		case ${TYPE} in
-			app)	ssmode="shared-${TYPE}";
-					ssmode_install="install-shared-${TYPE}";;
-			lib)	ssmode="static-${TYPE} shared-${TYPE}";
-					ssmode_install="install-static-${TYPE} install-shared-${TYPE}";;
+	[ "${static}/${shared}" = '0/0' ] && {
+		case "${TYPE}" in
+			app)	shared=1;;
+			lib)	shared=1; static=1;;
 			*) echo "Unknown TYPE mode.";;
 		esac
 	}
+
+	case "${TYPE}/${static}/${shared}" in
+		app/1/0)	ssmode='static-app'; ssmode_install='install-static-app';;
+		app/0/1)	ssmode='shared-app'; ssmode_install='install-shared-app';;
+		app/1/1)	ssmode='static-app shared-app'; ssmode_install='install-both-app';;
+		lib/1/0)	ssmode='static-lib'; ssmode_install='install-static-lib';;
+		lib/0/1)	ssmode='shared-lib'; ssmode_install='install-shared-lib';;
+		lib/1/1)	ssmode='static-lib shared-lib'; ssmode_install='install-static-lib install-shared-lib';;
+	esac
+
 
 	case ${TYPE} in
 		lib) ssmode_install="${ssmode_install} install-header";;
@@ -87,8 +95,10 @@ main(){
 
 write_makefile(){
 cat << EOF
-all: libubox ${ssmode}
-install: libubox ${ssmode_install}
+all: ${CUSTOM_CMD} ${ssmode}
+install: ${CUSTOM_CMD} ${ssmode_install}
+
+include ${sRoot}/Project.mk
 
 MROOT		= ${sRoot:-.}/
 prefix		= ${prefix:-/usr}
@@ -108,11 +118,10 @@ STRIP		= \$(CROSS_TARGET)strip
 
 CFLAGS		= ${CFLAGS}
 CXXFLAGS	= ${CXXFLAGS}
-LDFLAGS		= ${LDFLAGS} "\$(BUILD_DIR_EX)/libubox.o"
+LDFLAGS		= ${LDFLAGS}
 
 INCLUDE		= ${INCLUDE}
 
-include ${sRoot}/Project.mk
 include ${sRoot}/Makefile.in
 
 EOF
