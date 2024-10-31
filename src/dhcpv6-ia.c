@@ -17,6 +17,7 @@
 #include "dhcpv6.h"
 #include "md5.h"
 
+#include <stdio.h>
 #include <time.h>
 #include <errno.h>
 #include <fcntl.h>

@@ -57,16 +57,18 @@ static int open_interface(struct relayd_interface *iface,
 		const char *ifname, bool external);
 static void relayd_receive_packets(struct relayd_event *event);
 
-
 int main(int argc, char* const argv[])
 {
 	memset(&config, 0, sizeof(config));
+
+	sprintf(config.route_proto, "66");
+	int RP = 0;
 
 	const char *pidfile = "/var/run/6relayd.pid";
 	bool daemonize = false;
 	int verbosity = 0;
 	int c;
-	while ((c = getopt(argc, argv, "ASR:D:Nsucn::l:a:rt:m:oi:p:dvh")) != -1) {
+	while ((c = getopt(argc, argv, "ASR:D:Nsucn::l:a:rt:m:oi:p:dvh:P:")) != -1) {
 		switch (c) {
 		case 'A':
 			config.enable_router_discovery_relay = true;
@@ -168,6 +170,14 @@ int main(int argc, char* const argv[])
 
 		case 'v':
 			verbosity++;
+			break;
+
+		case 'P':
+			RP = atoi(optarg);
+			if((RP) && (RP < 256)){
+				sprintf(config.route_proto, optarg);
+			}
+			printf("I: Route proto set to %s\n", config.route_proto);
 			break;
 
 		default:

@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
-
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <net/ethernet.h>
@@ -192,11 +192,33 @@ int init_ndp_proxy(const struct relayd_config *relayd_config)
 // Deinitialize NDP proxy
 void deinit_ndp_proxy()
 {
+	char Proto[4] = {0};
+	char *IPCommandArgs[9] = {0};
+	IPCommandArgs[0] = "ip";
+	IPCommandArgs[1] = "-6";
+	IPCommandArgs[2] = "route";
+	IPCommandArgs[3] = "flush";
+	IPCommandArgs[4] = "proto";
+	IPCommandArgs[5] = Proto;
+	strcpy(Proto, config->route_proto);
+
+	printf("I: Unregistering routes...\n");
+//	printf("I: DEBUG: %s %s %s %s %s %s\n", IPCommandArgs[0], IPCommandArgs[1], IPCommandArgs[2], IPCommandArgs[3], IPCommandArgs[4], IPCommandArgs[5]);
+
+	pid_t P = fork();
+	if(P == 0){
+		execvp("ip", IPCommandArgs);
+		printf("E: Failed to exec: %i\n", errno);
+		exit(0);
+	}
+
+/*
 	while (!list_empty(&neighbors)) {
 		struct ndp_neighbor *c = list_first_entry(&neighbors,
 				struct ndp_neighbor, head);
 		modify_neighbor(&c->addr, c->iface, false);
 	}
+*/
 }
 
 
@@ -353,6 +375,12 @@ void relayd_setup_route(const struct in6_addr *addr, int prefixlen,
 }
 
 // Use rtnetlink to modify kernel routes
+// Use 'ip' command to modify kernel routes (rtnetlink method is not working...)
+
+static char *IPCommandArgs[9] = {0};
+static char IPv6[64];
+static char Proto[4];
+
 static void setup_route(struct in6_addr *addr, struct relayd_interface *iface,
 		bool add)
 {
@@ -361,10 +389,40 @@ static void setup_route(struct in6_addr *addr, struct relayd_interface *iface,
 	syslog(LOG_NOTICE, "%s about %s on %s", (add) ? "Learned" : "Forgot",
 			namebuf, (iface) ? iface->ifname : "<pending>");
 
-	if (!iface || !config->enable_route_learning)
+	if (!iface || !config->enable_route_learning){
 		return;
+	}
 
-	relayd_setup_route(addr, 128, iface, NULL, add);
+	if(IPCommandArgs[0] == 0){
+		IPCommandArgs[0] = "ip";
+		IPCommandArgs[1] = "-6";
+		IPCommandArgs[2] = "route";
+		IPCommandArgs[5] = "dev";
+		IPCommandArgs[7] = "proto";
+		IPCommandArgs[8] = Proto;
+	}
+	if(add){
+		IPCommandArgs[3] = "add";
+	} else {
+		IPCommandArgs[3] = "del";
+	}
+
+	strcpy(IPv6, namebuf);
+	strcpy(Proto, config->route_proto);
+
+	IPCommandArgs[4] = IPv6;
+	IPCommandArgs[6] = iface->ifname;
+	printf("I: %s Route: %s -> %s\n", IPCommandArgs[3], IPCommandArgs[4], IPCommandArgs[6]);
+//	printf("I: DEBUG: %s %s %s %s %s %s %s %s %s\n", IPCommandArgs[0], IPCommandArgs[1], IPCommandArgs[2], IPCommandArgs[3], IPCommandArgs[4], IPCommandArgs[5], IPCommandArgs[6], IPCommandArgs[7], IPCommandArgs[8]);
+
+	pid_t P = fork();
+	if(P == 0){
+		execvp("ip", IPCommandArgs);
+		printf("E: Failed to exec: %i\n", errno);
+		exit(0);
+	}
+
+//	relayd_setup_route(addr, 128, iface, NULL, add);
 }
 
 static void free_neighbor(struct ndp_neighbor *n)
