@@ -450,7 +450,6 @@ int relayd_register_event(struct relayd_event *event)
 	}
 }
 
-
 // Forwards a packet on a specific interface
 ssize_t relayd_forward_packet(int socket, struct sockaddr_in6 *dest,
 		struct iovec *iov, size_t iov_len,
@@ -458,8 +457,16 @@ ssize_t relayd_forward_packet(int socket, struct sockaddr_in6 *dest,
 {
 	// Construct headers
 	uint8_t cmsg_buf[CMSG_SPACE(sizeof(struct in6_pktinfo))] = {0};
-	struct msghdr msg = {(void*)dest, sizeof(*dest), iov, iov_len,
-				cmsg_buf, sizeof(cmsg_buf), 0};
+	
+	// sys/socket.h of some C library has extra members for padding.
+	struct msghdr msg = {0};
+	msg.msg_name = (void*)dest;
+	msg.msg_namelen = sizeof(*dest);
+	msg.msg_iov = iov;
+	msg.msg_iovlen = iov_len;
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = sizeof(cmsg_buf);
+	msg.msg_flags = 0;
 
 	// Set control data (define destination interface)
 	struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
@@ -599,8 +606,16 @@ static void relayd_receive_packets(struct relayd_event *event)
 
 	while (true) {
 		struct iovec iov = {data_buf, sizeof(data_buf)};
-		struct msghdr msg = {&addr, sizeof(addr), &iov, 1,
-				cmsg_buf, sizeof(cmsg_buf), 0};
+		
+		// sys/socket.h of some C library has extra members for padding.
+		struct msghdr msg = {0};
+		msg.msg_name = &addr;
+		msg.msg_namelen = sizeof(addr);
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_control = cmsg_buf;
+		msg.msg_controllen = sizeof(cmsg_buf);
+		msg.msg_flags = 0;
 
 		ssize_t len = recvmsg(event->socket, &msg, MSG_DONTWAIT);
 		if (len < 0) {

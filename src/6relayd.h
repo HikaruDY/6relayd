@@ -21,6 +21,10 @@
 
 #include "list.h"
 
+#if !defined(SYS_clock_gettime)
+	#define SYS_clock_gettime SYS_clock_gettime32
+#endif
+
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 // RFC 6106 defines this router advertisement option
