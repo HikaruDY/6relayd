@@ -1,0 +1,302 @@
+# Makefile for Dark Embedded Systems Linux Applications / Libraries
+#	(C)2024-2025 Dark Embedded Systems
+#	http://e.xprj.net/
+# Version: DLAMF:X:A:A:20241215002
+
+
+
+.PHONY: all clean
+
+
+
+# Flags
+LIBS_MERGED = $(LIBS_INTERNAL) $(LIBS_CFG) $(LIBS)
+
+CFLAGS_MERGED = $(CFLAGS_INTERNAL) $(CFLAGS_CFG) $(CFLAGS)
+LDFLAGS_MERGED = $(LDFLAGS_INTERNAL) $(LDFLAGS_CFG) $(LDFLAGS) $(addprefix -l, $(LIBS_MERGED))
+
+CFLAGS_FOR_BUILD_MERGED = $(CFLAGS_FOR_BUILD_INTERNAL) $(CFLAGS_CFG_FOR_BUILD) $(CFLAGS_FOR_BUILD)
+LDFLAGS_FOR_BUILD_MERGED = $(LDFLAGS_FOR_BUILD_INTERNAL) $(LDFLAGS_CFG_FOR_BUILD) $(LDFLAGS_FOR_BUILD)
+LIBS_FOR_BUILD_MERGED = $(LIBS_FOR_BUILD_INTERNAL) $(LIBS_FOR_BUILD_CFG) $(LIBS_FOR_BUILD)
+
+
+
+# Settings
+SUFFIX_STATIC = _static
+ifeq ($(SSMODE_SHARED),0)
+	SUFFIX_STATIC =
+endif
+
+
+
+# Progs
+SUBDIRS = $(SUBDIRS_OBJONLY) $(SUBDIRS_LIB) $(SUBDIRS_SBIN) $(SUBDIRS_BIN) $(SUBDIRS_LIBEXEC)
+FILES_OBJONLY = $(foreach P, $(SUBDIRS_OBJONLY), $(FILES_OBJECT_$(P)))
+
+
+
+# 'all'
+LibDepends = $(FILES_OBJONLY)
+ifeq ($(SSMODE_STATIC),1)
+	LibDepends += $(addprefix $(OUTPUT_DIR)/lib, $(addsuffix .a, $(SUBDIRS_LIB)))
+endif
+ifeq ($(SSMODE_SHARED),1)
+	LibDepends += $(addprefix $(OUTPUT_DIR)/lib, $(addsuffix .so, $(SUBDIRS_LIB)))
+endif
+
+BinDepends =
+ifeq ($(SSMODE_STATIC),1)
+	BinDepends += $(addprefix $(OUTPUT_DIR)/, $(addsuffix $(SUFFIX_STATIC), $(SUBDIRS_SBIN)))
+	BinDepends += $(addprefix $(OUTPUT_DIR)/, $(addsuffix $(SUFFIX_STATIC), $(SUBDIRS_BIN)))
+	BinDepends += $(addprefix $(OUTPUT_DIR)/, $(addsuffix $(SUFFIX_STATIC), $(SUBDIRS_LIBEXEC)))
+endif
+ifeq ($(SSMODE_SHARED),1)
+	BinDepends += $(addprefix $(OUTPUT_DIR)/, $(SUBDIRS_SBIN))
+	BinDepends += $(addprefix $(OUTPUT_DIR)/, $(SUBDIRS_BIN))
+	BinDepends += $(addprefix $(OUTPUT_DIR)/, $(SUBDIRS_LIBEXEC))
+endif
+
+all: $(LibDepends) $(BinDepends)
+
+
+
+# 'clean'
+clean:
+	rm -rf '$(OUTPUT_DIR)' $(SUBDIRS)
+
+distclean: clean
+	rm -f config.h Makefile
+
+
+
+# 'install'
+install: install-program install-data install-doc
+	@echo "Installation successfully to '$(DESTDIR)$(PREFIX)'"
+
+install-program: install-bin install-lib install-header
+
+
+
+# 'install-header'
+install-header:
+ifneq ($(INSTALL_INCLUDES),)
+	@mkdir -p "$(DESTDIR)/$(INCLUDEDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_INCLUDES), \
+		cp -r "$(SROOT)/$(P)" -T "$(DESTDIR)/$(INCLUDEDIR)"; \
+	)
+
+ifneq ($(INSTALL_HEADER_FILES),)
+	@mkdir -p "$(DESTDIR)/$(INCLUDEDIR)"
+	@$(foreach P, \
+		$(INSTALL_HEADER_FILES), \
+		cp "$(SROOT)/$(P)" "$(DESTDIR)/$(INCLUDEDIR)"; \
+	)
+endif
+
+# 'install-bin'
+install-bin: $(INSTALL_DEPENDS)
+	@echo "Installing..."
+
+ifneq ($(SUBDIRS_BIN),)
+	@mkdir -p "$(DESTDIR)/$(BINDIR)"
+	@$(foreach P, \
+		$(SUBDIRS_BIN), \
+		echo " $(P)"; cp "$(addprefix $(OUTPUT_DIR)/,$(P))" "$(addsuffix $(PROGRAM_SUFFIX), $(addprefix $(DESTDIR)/$(BINDIR)/$(PROGRAM_PREFIX),$(P)))"; \
+	)
+endif
+
+ifneq ($(SUBDIRS_SBIN),)
+	@mkdir -p "$(DESTDIR)/$(SBINDIR)"
+	@$(foreach P, \
+		$(SUBDIRS_SBIN), \
+		echo " $(P)"; cp "$(addprefix $(OUTPUT_DIR)/,$(P))" "$(addsuffix $(PROGRAM_SUFFIX), $(addprefix $(DESTDIR)/$(SBINDIR)/$(PROGRAM_PREFIX),$(P)))"; \
+	)
+endif
+
+ifneq ($(SUBDIRS_LIBEXEC),)
+	@mkdir -p "$(DESTDIR)/$(LIBEXECDIR)"
+	@$(foreach P, \
+		$(SUBDIRS_LIBEXEC), \
+		echo " $(P)"; cp "$(addprefix $(OUTPUT_DIR)/,$(P))" "$(addsuffix $(PROGRAM_SUFFIX), $(addprefix $(DESTDIR)/$(LIBEXECDIR)/$(PROGRAM_PREFIX),$(P)))"; \
+	)
+endif
+
+
+
+# 'install-lib'
+INSTALL_DEPENDS = $(addprefix $(OUTPUT_DIR)/, $(SUBDIRS_SBIN))
+INSTALL_DEPENDS += $(addprefix $(OUTPUT_DIR)/, $(SUBDIRS_BIN))
+INSTALL_DEPENDS += $(addprefix $(OUTPUT_DIR)/, $(SUBDIRS_LIBEXEC))
+ifeq ($(SSMODE_STATIC),1)
+	INSTALL_DEPENDS += $(addsuffix .a, $(addprefix $(OUTPUT_DIR)/lib, $(SUBDIRS_LIB)))
+endif
+ifeq ($(SSMODE_SHARED),1)
+	INSTALL_DEPENDS += $(addsuffix .so, $(addprefix $(OUTPUT_DIR)/lib, $(SUBDIRS_LIB)))
+endif
+install-lib:
+ifneq ($(SUBDIRS_LIB),)
+ifeq ($(SSMODE_STATIC),1)
+	@mkdir -p "$(DESTDIR)/$(LIBDIR)"
+	@$(foreach P, \
+		$(SUBDIRS_LIB), \
+		@echo " $(P)"; cp "$(addsuffix .a, $(addprefix $(OUTPUT_DIR)/lib,$(P)))" "$(addsuffix .a, $(addprefix $(DESTDIR)/$(LIBDIR)/,$(P)))"; \
+	)
+endif
+ifeq ($(SSMODE_SHARED),1)
+	@mkdir -p "$(DESTDIR)/$(LIBDIR)"
+	@$(foreach P, \
+		$(SUBDIRS_LIB), \
+		echo " $(P)"; cp "$(addsuffix .so, $(addprefix $(OUTPUT_DIR)/lib,$(P)))" "$(addsuffix .so, $(addprefix $(DESTDIR)/$(LIBDIR)/,$(P)))"; \
+	)
+endif
+endif
+
+
+
+# Install others
+
+install-data:
+ifneq ($(INSTALL_ETCS),)
+	@mkdir -p "$(DESTDIR)/$(SYSCONFDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_ETCS), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(SYSCONFDIR)"; \
+	)
+
+ifneq ($(INSTALL_SHARE),)
+	@mkdir -p "$(DESTDIR)/$(SHAREDSTATEDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_SHARE), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(SHAREDSTATEDIR)"; \
+	)
+
+ifneq ($(INSTALL_LOCALES),)
+	@mkdir -p "$(DESTDIR)/$(LOCALEDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_LOCALES), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(LOCALEDIR)"; \
+	)
+
+
+install-doc:
+ifneq ($(INSTALL_DOCS),)
+	@mkdir -p "$(DESTDIR)/$(DATADIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_DOCS), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(DATADIR)"; \
+	)
+
+ifneq ($(INSTALL_DOCS_INFO),)
+	@mkdir -p "$(DESTDIR)/$(INFODIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_DOCS_INFO), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(INFODIR)"; \
+	)
+
+ifneq ($(INSTALL_DOCS_MAN),)
+	@mkdir -p "$(DESTDIR)/$(MANDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_DOCS_MAN), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(MANDIR)"; \
+	)
+
+ifneq ($(INSTALL_DOCS_DVI),)
+	@mkdir -p "$(DESTDIR)/$(DVIDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_DOCS_DVI), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(DVIDIR)"; \
+	)
+
+ifneq ($(INSTALL_DOCS_PDF),)
+	@mkdir -p "$(DESTDIR)/$(PDFDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_DOCS_PDF), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(PDFDIR)"; \
+	)
+
+ifneq ($(INSTALL_DOCS_PS),)
+	@mkdir -p "$(DESTDIR)/$(PSDIR)"
+endif
+	@$(foreach P, \
+		$(INSTALL_DOCS_PS), \
+		cp -r "$(SROOT)/$(P)/" -T "$(DESTDIR)/$(PSDIR)"; \
+	)
+
+
+
+# Defines
+
+define GetCFiles
+	FILES_SOURCE_$(1) += $(wildcard $(SROOT)/src/$(1)/*.c)
+	FILES_OBJECT_$(1) += $(addprefix $(1)/, $(addsuffix .o, $(basename $(notdir $(wildcard $(SROOT)/src/$(1)/*.c)))))
+endef
+
+
+define MakeObj
+$(1):
+	@echo "Object: $(1)... "
+	@mkdir -p "$(dir $(1))"
+	@$(CC) -o "$(1)" -c $(CFLAGS_MERGED) $($(subst /,,$(dir $(1)))_CFLAGS) "$(SROOT)/src/$(basename $(1)).c"
+endef
+
+
+define MakeLib
+$(foreach O, $(FILES_OBJECT_$(1)), $(eval $(call MakeObj,$(O))) )
+
+$(OUTPUT_DIR)/lib$(1).a: $(FILES_OBJECT_$(1))
+	@echo "Lib: lib$(1).a..."
+	@mkdir -p "$(OUTPUT_DIR)"
+	@$(AR) rcs "$(OUTPUT_DIR)/lib$(1).a" $(FILES_OBJECT_$(1))
+
+$(OUTPUT_DIR)/lib$(1).so: $(FILES_OBJECT_$(1))
+	@echo "Lib: lib$(1).so..."
+	@mkdir -p "$(OUTPUT_DIR)"
+	@$(CC) -shared -o "$(OUTPUT_DIR)/lib$(1).so" $(LDFLAGS_MERGED) $($(1)_LDFLAGS) $(addprefix -l, $($(1)_LIBS)) $(FILES_OBJECT_$(1))
+endef
+
+
+define MakeBin
+$(foreach O, $(FILES_OBJECT_$(1)), $(eval $(call MakeObj,$(O))) )
+
+ifneq ($(SSMODE_SHARED),0)
+$(OUTPUT_DIR)/$(1): $(FILES_OBJECT_$(1)) \
+		$(foreach P, $($(1)_OBJS), $(FILES_OBJECT_$(P))) \
+		$(addsuffix .so, $(addprefix $(OUTPUT_DIR)/lib, $($(1)_LIBS)))
+	@echo "Bin: $(1)..."
+	@mkdir -p "$(OUTPUT_DIR)"
+	@$(CC) -o "$(OUTPUT_DIR)/$(1)" \
+		$(foreach P, $($(1)_OBJS), $(FILES_OBJECT_$(P))) \
+		$(FILES_OBJECT_$(1)) \
+		$(LDFLAGS_MERGED) $($(1)_LDFLAGS) $(addprefix -l, $($(1)_LIBS))
+endif
+
+$(OUTPUT_DIR)/$(1)$(SUFFIX_STATIC): $(FILES_OBJECT_$(1)) \
+		$(foreach P, $($(1)_OBJS), $(FILES_OBJECT_$(P))) \
+		$(addsuffix .a, $(addprefix $(OUTPUT_DIR)/lib, $($(1)_LIBS)))
+	@echo "Bin: $(1)$(SUFFIX_STATIC)..."
+	@mkdir -p "$(OUTPUT_DIR)"
+	@$(CC) -static -o "$(OUTPUT_DIR)/$(1)$(SUFFIX_STATIC)" \
+		$(foreach P, $($(1)_OBJS), $(FILES_OBJECT_$(P))) \
+		$(FILES_OBJECT_$(1)) \
+		$(LDFLAGS_MERGED) $($(1)_LDFLAGS) $(addprefix -l, $($(1)_LIBS))
+endef
+
+
+
+# Automatic define
+$(foreach P, $(SUBDIRS), $(eval $(call GetCFiles,$(P))) )
+$(foreach P, $(FILES_OBJONLY), $(eval $(call MakeObj,$(P))) )
+$(foreach P, $(SUBDIRS_LIB), $(eval $(call MakeLib,$(P))) )
+$(foreach P, $(SUBDIRS_SBIN), $(eval $(call MakeBin,$(P))) )
+$(foreach P, $(SUBDIRS_BIN), $(eval $(call MakeBin,$(P))) )
+$(foreach P, $(SUBDIRS_LIBEXEC), $(eval $(call MakeBin,$(P))) )
