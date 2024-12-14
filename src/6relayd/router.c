@@ -372,6 +372,7 @@ static void send_router_advert(struct relayd_event *event) {
   } domain = {ND_OPT_DNS_SEARCH, 3, 0, 0, htonl(3 * MaxRtrAdvInterval), {0}};
   size_t domain_len = 0;
 
+/*
   res_init();
   const char *search = _res.dnsrch[0];
   if (search && search[0]) {
@@ -381,6 +382,10 @@ static void send_router_advert(struct relayd_event *event) {
       domain.len = domain_len / 8;
     }
   }
+*/
+  domain_len = strlen((char*) domain.name);
+  domain.len = htons(domain_len);
+  domain_len += 4;
 
   size_t routes_cnt = 0;
   struct {

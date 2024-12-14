@@ -210,7 +210,7 @@ static void handle_client_request(void *addr, void *data, size_t len,
     struct in6_addr addr;
   } dnsaddr = {htons(DHCPV6_OPT_DNS_SERVERS), htons(sizeof(struct in6_addr)),
                IN6ADDR_ANY_INIT};
-
+/*
   res_init();
   const char *search = _res.dnsrch[0];
   if (search && search[0]) {
@@ -220,6 +220,11 @@ static void handle_client_request(void *addr, void *data, size_t len,
       domain_len = len + 4;
     }
   }
+*/
+
+  domain_len = strlen((char*) domain.name);
+  domain.len = htons(domain_len);
+  domain_len += 4;
 
   uint8_t pdbuf[512];
   struct iovec iov[] = {

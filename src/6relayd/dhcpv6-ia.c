@@ -620,15 +620,18 @@ static size_t append_reply(uint8_t *buf, size_t buflen, uint16_t status,
               continue;
 
             struct in6_addr addr = iface->pd_addr[i].addr;
+	    struct in6_addr TestAddr;
             if (ia->type == htons(DHCPV6_OPT_IA_PD)) {
               addr.s6_addr32[1] |= htonl(a->assigned);
 
-              if (IN6_ARE_ADDR_EQUAL(&p->addr, &addr) && p->prefix == a->length)
+              TestAddr = p->addr;
+              if (IN6_ARE_ADDR_EQUAL(&TestAddr, &addr) && p->prefix == a->length)
                 found = true;
             } else {
               addr.s6_addr32[3] = htonl(a->assigned);
 
-              if (IN6_ARE_ADDR_EQUAL(&n->addr, &addr))
+              TestAddr = n->addr;
+              if (IN6_ARE_ADDR_EQUAL(&TestAddr, &addr))
                 found = true;
             }
           }
