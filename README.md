@@ -1,7 +1,6 @@
-6relayd - Embedded DHCPv6/RA Server & Relay
+# 6relayd - Embedded DHCPv6/RA Server & Relay
 
-** Abstract **
-
+## Abstract
 6relayd is a daemon for serving and relaying IPv6 management protocols to
 configure clients and downstream routers. It tries to follow the RFC 6204
 requirements for IPv6 home routers.
@@ -13,7 +12,7 @@ prefix delegation and can be used to relay RA, DHCPv6 and NDP between routed
 It is optimized for embedded Linux routers and compiles to <40 KB.
 
 
-** Features **
+## Features
 
 1. Router Discovery support (solicitations and advertisements) with 2 modes
    server:	RD server for slave interfaces
@@ -40,7 +39,7 @@ It is optimized for embedded Linux routers and compiles to <40 KB.
       [Warning: you should provide additional firewall rules for security]
 
 
-** Compiling **
+## Compiling
 
 6relayd uses cmake:
 * To prepare a Makefile use:  "cmake ." 
@@ -48,7 +47,7 @@ It is optimized for embedded Linux routers and compiles to <40 KB.
 * To build DEB or RPM packages use: "make package" afterwards.
 
 
-** Server Mode **
+## Server Mode
 
 0. Server mode is used as a minimalistic alternative for full-blown servers
    like radvd or ISC DHCP if simplicity or a small footprint matter.
@@ -69,7 +68,7 @@ It is optimized for embedded Linux routers and compiles to <40 KB.
    See 6relayd -h for command line parameters.
 
 
-** Relay Mode **
+## Relay Mode
 
 0. Relay mode is used when a /64-bit IPv6-Prefix should be distributed over
    several links / isolated layer 2 domains (e.g. if no prefix delegation
