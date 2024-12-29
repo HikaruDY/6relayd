@@ -42,9 +42,8 @@ It is optimized for embedded Linux routers and compiles to <40 KB.
 ## Compiling
 
 6relayd uses cmake:
-* To prepare a Makefile use:  "cmake ." 
+* To prepare a Makefile use:  "./configure" 
 * To build / install use: "make" / "make install" afterwards.
-* To build DEB or RPM packages use: "make package" afterwards.
 
 
 ## Server Mode
