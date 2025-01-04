@@ -141,14 +141,14 @@ ifeq ($(SSMODE_STATIC),1)
 	@mkdir -p "$(DESTDIR)/$(LIBDIR)"
 	@$(foreach P, \
 		$(SUBDIRS_LIB), \
-		@echo " $(P)"; cp "$(addsuffix .a, $(addprefix $(OUTPUT_DIR)/lib,$(P)))" "$(addsuffix .a, $(addprefix $(DESTDIR)/$(LIBDIR)/,$(P)))"; \
+		@echo " $(P)"; cp "$(addsuffix .a, $(addprefix $(OUTPUT_DIR)/lib,$(P)))" "$(addsuffix .a, $(addprefix $(DESTDIR)/$(LIBDIR)/lib,$(P)))"; \
 	)
 endif
 ifeq ($(SSMODE_SHARED),1)
 	@mkdir -p "$(DESTDIR)/$(LIBDIR)"
 	@$(foreach P, \
 		$(SUBDIRS_LIB), \
-		echo " $(P)"; cp "$(addsuffix .so, $(addprefix $(OUTPUT_DIR)/lib,$(P)))" "$(addsuffix .so, $(addprefix $(DESTDIR)/$(LIBDIR)/,$(P)))"; \
+		echo " $(P)"; cp "$(addsuffix .so, $(addprefix $(OUTPUT_DIR)/lib,$(P)))" "$(addsuffix .so, $(addprefix $(DESTDIR)/$(LIBDIR)/lib,$(P)))"; \
 	)
 endif
 endif
